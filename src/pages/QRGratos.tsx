@@ -29,12 +29,12 @@ export default function QRGratos() {
     }
   };
   return (
-    <section className="bg-[#0064E2] h-screen py-32">
-      <div className="justify-center flex flex-col items-center">
-        <h1 className="text-white font-mileast-italic text-6xl mb-3">
+    <section className="bg-[#0064E2] min-h-dvh px-5 py-12 sm:px-8 sm:py-20 lg:py-32">
+      <div className="mx-auto flex w-full max-w-xl flex-col items-center text-center">
+        <h1 className="text-white font-mileast-italic text-4xl mb-3 sm:text-6xl">
           QRGratos
         </h1>
-        <p className="text-white font-inter text-xl mb-5">
+        <p className="text-white font-inter text-base mb-5 sm:text-xl">
           Paste the link you want to tranform to a QR Code here!
         </p>
         <input
@@ -43,20 +43,21 @@ export default function QRGratos() {
             setUrl(e.target.value);
           }}
           type="text"
-          className="border-2 w-sm border-yellow-400 rounded-sm px-2 py-2 text-white font-inter italic text-sm"
+          aria-label="Link to turn into a QR code"
+          className="border-2 w-full max-w-sm min-h-11 border-yellow-400 rounded-sm px-3 py-2 text-white font-inter italic text-base"
           placeholder="Enter your url"
         />
         {url.length > 0 && (
-          <div>
+          <div className="flex w-full max-w-sm flex-col items-center">
             <img
-              className="mt-5"
+              className="mt-5 h-auto w-[150px] max-w-full"
               src={qrCodeUrl}
               alt="QR Code Image"
             />
             <button
               onClick={handleDownload}
               disabled={downloading}
-              className="mt-3 px-4 py-2 bg-yellow-500 text-sm font-inter font-semibold text-white rounded hover:bg-yellow-600 disabled:opacity-50"
+              className="mt-3 min-h-11 w-full px-4 py-2 bg-yellow-500 text-sm font-inter font-semibold text-white rounded hover:bg-yellow-600 disabled:opacity-50 sm:w-auto"
             >
               Download
             </button>
