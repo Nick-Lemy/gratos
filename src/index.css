@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: 'Mileast';
+  src: url('./assets/fonts/Mileast.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Mileast Italic';
+  src: url('./assets/fonts/Mileast\ Italic.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+
+
+@theme {
+  --font-inter: "Inter", sans-serif;
+  --font-mileast: "Mileast", serif;
+  --font-mileast-italic: "Mileast Italic", serif;
+}
