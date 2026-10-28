@@ -9,29 +9,46 @@ import {
   Link2,
 } from "lucide-react";
 
-export default function MediaGratos() {
-  const [videoUrl, setVideoUrl] = useState("");
-  const [ffmpegLoaded, setFfmpegLoaded] = useState(false);
-  const [status, setStatus] = useState("idle"); // idle | loading-ffmpeg | processing | success | error
-  const [progress, setProgress] = useState(0);
-  const [errorMessage, setErrorMessage] = useState("");
+type StatusType =
+  "idle" | "loading-ffmpeg" | "processing" | "success" | "error";
 
-  const ffmpegRef = useRef(new FFmpeg());
+interface CobaltErrorResponse {
+  status: "error";
+  text: string;
+}
+
+interface CobaltSuccessResponse {
+  status: "success" | "stream" | "redirect";
+  url: string;
+}
+
+type CobaltResponse = CobaltSuccessResponse | CobaltErrorResponse;
+
+export default function MediaGratos() {
+  const [videoUrl, setVideoUrl] = useState<string>("");
+  const [ffmpegLoaded, setFfmpegLoaded] = useState<boolean>(false);
+  const [status, setStatus] = useState<StatusType>("idle");
+  const [progress, setProgress] = useState<number>(0);
+  const [errorMessage, setErrorMessage] = useState<string>("");
+
+  const ffmpegRef = useRef<FFmpeg>(new FFmpeg());
 
   // Load FFmpeg WebAssembly binaries on mount
   useEffect(() => {
     async function loadFFmpeg() {
       try {
         setStatus("loading-ffmpeg");
-        const baseURL = "https://unpkg.com";
+
+        // Stable jsDelivr mirror that serves appropriate CORS and CORP headers
+        const baseURL = "https://jsdelivr.net";
         const ffmpeg = ffmpegRef.current;
 
-        // Listen to logs to calculate conversion progress
-        ffmpeg.on("log", ({ message }) => {
+        // Correctly typed FFmpeg event listeners
+        ffmpeg.on("log", ({ message }: { message: string }) => {
           console.log(message);
         });
 
-        ffmpeg.on("progress", ({ progress }) => {
+        ffmpeg.on("progress", ({ progress }: { progress: number }) => {
           setProgress(Math.round(progress * 100));
         });
 
@@ -52,14 +69,14 @@ export default function MediaGratos() {
         console.error("FFmpeg Load Error:", err);
         setStatus("error");
         setErrorMessage(
-          "Failed to load local media engine. Double check your Netlify security headers.",
+          "Failed to load local media engine. The external CDN was blocked by cross-origin isolation.",
         );
       }
     }
     loadFFmpeg();
   }, []);
 
-  const handleProcessVideo = async (e) => {
+  const handleProcessVideo = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!videoUrl) return;
 
@@ -69,7 +86,6 @@ export default function MediaGratos() {
       setErrorMessage("");
 
       // 1. CALL AN API TO EXTRACT RAW CONTENT
-      // Since yt-dlp doesn't run in-browser, we hit a free public extraction API alternative
       setProgress(20);
       const apiResponse = await fetch(`https://cobalt.tools`, {
         method: "POST",
@@ -79,43 +95,44 @@ export default function MediaGratos() {
         },
         body: JSON.stringify({
           url: videoUrl,
-          vQuality: "720", // Safe default fallback resolution
+          vQuality: "720",
           isAudioOnly: false,
         }),
       });
 
-      const apiData = await apiResponse.json();
+      const apiData = (await apiResponse.json()) as CobaltResponse;
 
       if (!apiResponse.ok || apiData.status === "error") {
         throw new Error(
-          apiData.text ||
+          (apiData as CobaltErrorResponse).text ||
             "Could not resolve media stream locations from this URL.",
         );
       }
 
       // 2. FETCH THE STREAM VIA CORS PROXY TO BYPASS CROSS-ORIGIN BLOCKS
       setProgress(40);
-      const targetMediaUrl = apiData.url;
+      const targetMediaUrl = (apiData as CobaltSuccessResponse).url;
       const corsProxy = "https://herokuapp.com";
 
       const ffmpeg = ffmpegRef.current;
 
       // 3. LOAD DATA INTO FFMPEG VIRTUAL MEMORY
       setProgress(60);
-      await ffmpeg.writeFile(
-        "input_stream",
-        await fetchFile(corsProxy + targetMediaUrl),
-      );
+      const fetchedMedia = await fetchFile(corsProxy + targetMediaUrl);
+      await ffmpeg.writeFile("input_stream", fetchedMedia);
 
       // 4. TRANSCODE/REMUX LOCALLY IN THE BROWSER
       setProgress(80);
-      // Recontainerizes the stream cleanly to a universal MP4 container
       await ffmpeg.exec(["-i", "input_stream", "-c", "copy", "output.mp4"]);
 
       // 5. EXTRACT BLOB AND TRIGGER BROWSER DOWNLOAD
       setProgress(95);
-      const data = await ffmpeg.readFile("output.mp4");
-      const blob = new Blob([data.buffer], { type: "video/mp4" });
+      const data = (await ffmpeg.readFile("output.mp4")) as Uint8Array;
+
+      // Explicitly downcast SharedArrayBuffer to ArrayBuffer to pass strict tsc compilation
+      const blob = new Blob([data.buffer as ArrayBuffer], {
+        type: "video/mp4",
+      });
       const downloadUrl = URL.createObjectURL(blob);
 
       const a = document.createElement("a");
@@ -132,13 +149,16 @@ export default function MediaGratos() {
       setProgress(100);
       setStatus("success");
       setVideoUrl("");
-    } catch (err) {
+    } catch (err: unknown) {
       console.error(err);
       setStatus("error");
-      setErrorMessage(
-        err.message ||
+      if (err instanceof Error) {
+        setErrorMessage(err.message);
+      } else {
+        setErrorMessage(
           "An unexpected error occurred while stitching video files.",
-      );
+        );
+      }
     }
   };
 
@@ -172,7 +192,9 @@ export default function MediaGratos() {
               disabled={!ffmpegLoaded || status === "processing"}
               placeholder="Paste YouTube, Instagram, or TikTok link..."
               value={videoUrl}
-              onChange={(e) => setVideoUrl(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setVideoUrl(e.target.value)
+              }
               className="w-full bg-neutral-900 border border-neutral-800 rounded-2xl py-4 pl-12 pr-4 text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition disabled:opacity-50 text-sm"
             />
           </div>
@@ -220,7 +242,7 @@ export default function MediaGratos() {
                 <AlertTriangle className="h-5 w-5 text-rose-400 flex-shrink-0" />
                 <span className="font-semibold">Processing Failed</span>
               </div>
-              <p className="text-xs text-neutral-400 max-w-sm">
+              <p className="text-xs text-neutral-400 max-w-sm text-center">
                 {errorMessage}
               </p>
             </div>
