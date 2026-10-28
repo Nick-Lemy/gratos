@@ -19,9 +19,8 @@ export default function Home() {
           href="/media"
           description={
             <>
-              Download direct media links and convert{" "}
-              <span className="text-teal-400">video and audio files</span>{" "}
-              right in your browser.
+              Download <span className="text-teal-400">videos and audio</span>{" "}
+              from YouTube, Instagram, and TikTok with your own API key.
             </>
           }
         />

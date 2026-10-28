@@ -3,11 +3,15 @@
 A collection of simple, free online tools.
 
 - **QRGratos:** turn a link into a QR code and download it as a PNG.
-- **MediaGratos:** download direct media links, repack video as MP4, or extract MP3 audio. Local files stay in your browser.
+- **MediaGratos:** download video and audio from YouTube, Instagram, and TikTok using your own Yoinku API key.
 
-MediaGratos supports files up to 200 MB. Links must point to a media file and allow cross-origin browser requests. YouTube, Instagram, and TikTok page links aren't supported without a backend API.
+To use MediaGratos:
 
-FFmpeg loads only for conversions, using locally hosted, cacheable assets (about 31 MB on first use). Original downloads skip it entirely. MP4 preserves the original tracks; incompatible formats may need a different converter.
+1. [Create a Yoinku account](https://yoinku.com/en/account) and generate an API key in the API keys section.
+2. Paste your key into MediaGratos. Use **Save key** to remember it in this browser's local storage, or **Forget key** to remove it.
+3. Paste a post link, get the available formats, choose video or audio, and prepare your download.
+
+Keys are sent directly to Yoinku, never to a Gratos backend. Yoinku's free plan currently allows 5 downloads per day per account; see the [API documentation](https://yoinku.com/en/api) for current limits. File availability depends on the source and provider. No FFmpeg or WASM download is needed.
 
 Built with React, TypeScript, Vite, and Tailwind CSS.
 
@@ -26,5 +30,5 @@ Open the local URL shown in your terminal.
 pnpm build    # Build for production
 pnpm preview  # Preview the production build
 pnpm lint     # Check code quality
-pnpm test     # Build and test media downloads and the WASM worker (Node 22.18+)
+pnpm test     # Test the media API integration (Node 22.18+)
 ```

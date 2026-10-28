@@ -1,172 +1,213 @@
 import { useState, useRef, useEffect, type FormEvent } from "react";
-import { Loader2, Download, AlertTriangle, CheckCircle, Link2, Upload } from "lucide-react";
-import { checkFileSize, downloadBlob, fetchMedia, mediaUrl, type OutputFormat } from "../lib/media";
+import { Loader2, Download, AlertTriangle, CheckCircle, Link2, Eye, EyeOff, KeyRound, ExternalLink } from "lucide-react";
+import toast from "react-hot-toast";
+import {
+  forgetApiKey, getMediaInfo, prepareDownload, readApiKey, saveApiKey,
+  YOINKU_ACCOUNT_URL, YOINKU_DOCS_URL,
+  type MediaInfo, type MediaKind, type MediaDownload,
+} from "../lib/yoinku";
 
-type Status = "idle" | "fetching" | "loading" | "converting" | "success" | "error";
+type Status = "idle" | "loading-info" | "preparing";
 
 export default function MediaGratos() {
-  const [source, setSource] = useState<"link" | "file">("link");
+  const [apiKey, setApiKey] = useState(readApiKey);
+  const [showKey, setShowKey] = useState(false);
   const [videoUrl, setVideoUrl] = useState("");
-  const [file, setFile] = useState<File | null>(null);
-  const [format, setFormat] = useState<OutputFormat>("original");
+  const [info, setInfo] = useState<MediaInfo | null>(null);
+  const [kind, setKind] = useState<MediaKind>("video");
+  const [format, setFormat] = useState("");
+  const [download, setDownload] = useState<MediaDownload | null>(null);
   const [status, setStatus] = useState<Status>("idle");
-  const [progress, setProgress] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
+  const [storageMessage, setStorageMessage] = useState("");
   const request = useRef<AbortController | null>(null);
-  const engineModule = useRef<typeof import("../lib/media-engine") | null>(null);
-  const busy = ["fetching", "loading", "converting"].includes(status);
+  const busy = status !== "idle";
 
-  useEffect(() => () => {
-    request.current?.abort();
-    engineModule.current?.releaseEngine();
-  }, []);
+  useEffect(() => () => { request.current?.abort(); }, []);
 
-  const handleProcess = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (request.current) return;
-    const controller = new AbortController();
-    request.current = controller;
+  // Remove signed links when they expire, rather than leave a broken download.
+  useEffect(() => {
+    if (!download) return;
+    const timer = setTimeout(() => {
+      setDownload(null);
+      setErrorMessage("This download link expired. Prepare a new download to continue.");
+    }, Math.max(0, Math.min(download.expiresAt - Date.now(), 2_147_483_647)));
+    return () => clearTimeout(timer);
+  }, [download]);
+
+  const reset = () => {
+    setInfo(null);
+    setFormat("");
+    setDownload(null);
     setErrorMessage("");
-    setProgress(null);
+  };
+
+  const handleSaveKey = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     try {
-      let input: File;
-      if (source === "file") {
-        if (!file) throw new Error("Choose a video or audio file first.");
-        checkFileSize(file.size);
-        input = file;
-      } else {
-        const url = mediaUrl(videoUrl);
-        setStatus("fetching");
-        input = await fetchMedia(url, controller.signal, setProgress);
-      }
-      controller.signal.throwIfAborted();
-      let result = input;
-      if (format !== "original") {
-        setStatus("loading");
-        const module = await import("../lib/media-engine");
-        controller.signal.throwIfAborted();
-        engineModule.current = module;
-        result = await module.convertMedia(input, format, controller.signal, (stage, percent) => {
-          setStatus(stage);
-          setProgress(percent);
-        });
-      }
-      controller.signal.throwIfAborted();
-      downloadBlob(result, result.name);
-      setProgress(100);
-      setStatus("success");
-    } catch (error) {
-      if (!controller.signal.aborted) {
-        setStatus("error");
-        setErrorMessage(error instanceof Error ? error.message : "Couldn't process this file. Please try again.");
-      }
-    } finally {
-      if (request.current === controller) request.current = null;
+      saveApiKey(apiKey);
+      setApiKey(apiKey.trim());
+      setStorageMessage("Key saved on this browser.");
+      toast.success("API key saved.");
+    } catch {
+      setStorageMessage("This browser couldn't save your key. You can still use it for this visit.");
     }
   };
 
-  const cancel = () => {
-    request.current?.abort();
-    // Keep the operation locked until its cleanup has completed.
-    setStatus("idle");
-    setProgress(null);
+  const handleForgetKey = () => {
+    setApiKey("");
+    setShowKey(false);
+    reset();
+    try {
+      forgetApiKey();
+      setStorageMessage("Key removed from this browser.");
+    } catch {
+      setStorageMessage("Couldn't clear browser storage. Remove this site's saved data in your browser settings.");
+    }
   };
 
-  const statusLabel = status === "fetching" ? "Downloading source file"
-    : status === "loading" ? "Loading conversion engine (first use: about 31 MB)"
-    : "Converting on your device";
+  const run = async (nextStatus: Status, operation: (signal: AbortSignal) => Promise<void>) => {
+    if (request.current) return;
+    const controller = new AbortController();
+    request.current = controller;
+    setStatus(nextStatus);
+    setErrorMessage("");
+    setDownload(null);
+    try {
+      await operation(controller.signal);
+    } catch (error) {
+      if (!controller.signal.aborted) setErrorMessage(error instanceof Error ? error.message : "Something went wrong. Please try again.");
+    } finally {
+      if (request.current === controller) {
+        request.current = null;
+        setStatus("idle");
+      }
+    }
+  };
+
+  const handleGetFormats = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    void run("loading-info", async (signal) => {
+      setInfo(null);
+      const result = await getMediaInfo(apiKey, videoUrl, signal);
+      signal.throwIfAborted();
+      setInfo(result);
+      const initial = result.formats.find((item) => item.kind === "video") || result.formats[0];
+      setKind(initial.kind);
+      setFormat(initial.id);
+    });
+  };
+
+  const handlePrepare = () => {
+    if (!info?.formats.some((item) => item.id === format && item.kind === kind)) return;
+    void run("preparing", async (signal) => {
+      const result = await prepareDownload(apiKey, videoUrl, format, signal);
+      signal.throwIfAborted();
+      setDownload(result);
+    });
+  };
+
+  const selectKind = (value: MediaKind) => {
+    setKind(value);
+    setFormat(info?.formats.find((item) => item.kind === value)?.id || "");
+    setDownload(null);
+    setErrorMessage("");
+  };
+
+  const formats = info?.formats.filter((item) => item.kind === kind) || [];
+  const inputClass = "w-full min-w-0 bg-neutral-900 border border-neutral-800 rounded-xl py-3 px-4 text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-teal-500 text-base disabled:opacity-50";
+  const buttonClass = "w-full min-h-12 bg-teal-500 hover:bg-teal-600 text-neutral-950 font-semibold py-3 px-5 rounded-xl transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal-400";
 
   return (
-    <section className="min-h-dvh bg-neutral-950 text-neutral-200 px-5 py-12 sm:px-8 sm:py-20 lg:py-32 flex flex-col items-center justify-center">
+    <section className="min-h-dvh bg-neutral-950 text-neutral-200 px-5 py-12 sm:px-8 sm:py-20 lg:py-24">
       <div className="mx-auto flex w-full max-w-xl flex-col items-center text-center">
-        <h1 className="font-serif italic font-extrabold text-4xl mb-3 sm:text-6xl tracking-tight text-teal-400">
-          MediaGratos
-        </h1>
+        <h1 className="font-serif italic font-extrabold text-4xl mb-3 sm:text-6xl tracking-tight text-teal-400">MediaGratos</h1>
         <p className="text-neutral-400 text-sm sm:text-base max-w-md mb-8">
-          Download a direct media link or convert a file from your device. Files are processed in your browser, without uploads.
+          Paste a YouTube, Instagram, or TikTok link. Choose video or audio, then download with your own Yoinku account.
         </p>
 
-        <form onSubmit={handleProcess} className="w-full space-y-4 text-left">
-          <fieldset disabled={busy} className="space-y-4 disabled:opacity-60">
-            <legend className="sr-only">Media source and output format</legend>
-            <div className="grid grid-cols-2 gap-2 rounded-2xl border border-neutral-800 bg-neutral-900 p-1">
-              {(["link", "file"] as const).map((value) => (
-                <button key={value} type="button" aria-pressed={source === value}
-                  onClick={() => { if (value !== source) { setSource(value); setFile(null); setStatus("idle"); } }}
-                  className={`min-h-11 rounded-xl px-3 py-2 text-sm font-medium transition focus-visible:outline-2 focus-visible:outline-teal-400 ${source === value ? "bg-teal-950 text-teal-300" : "text-neutral-400 hover:text-neutral-200"}`}>
-                  {value === "link" ? "Direct link" : "From device"}
+        <div className="w-full rounded-2xl border border-neutral-800 bg-neutral-900/50 p-4 sm:p-5 text-left mb-6">
+          <h2 className="flex items-center gap-2 text-base font-semibold text-teal-300"><KeyRound aria-hidden="true" className="h-4 w-4" />Your API key</h2>
+          <ol className="mt-3 list-decimal pl-5 text-sm text-neutral-400 space-y-2">
+            <li><a href={YOINKU_ACCOUNT_URL} target="_blank" rel="noopener noreferrer" className="text-teal-400 underline underline-offset-2">Create a free Yoinku account <ExternalLink aria-hidden="true" className="inline h-3 w-3" /></a> or sign in.</li>
+            <li>Open the API keys section of your account and create a key.</li>
+            <li>Paste it below. Choose Save key to remember it on this browser.</li>
+          </ol>
+          <form onSubmit={handleSaveKey} className="mt-4 space-y-3">
+            <label htmlFor="yoinku-key" className="block text-sm text-neutral-300">Yoinku API key</label>
+            <div className="relative">
+              <input id="yoinku-key" type={showKey ? "text" : "password"} value={apiKey} required disabled={busy}
+                onChange={(event) => { setApiKey(event.target.value); setStorageMessage(""); reset(); }}
+                placeholder="Paste your API key" autoComplete="off" autoCapitalize="none" spellCheck={false} aria-describedby="key-storage-help"
+                className={`${inputClass} pr-14`} />
+              <button type="button" onClick={() => setShowKey(!showKey)} aria-label={showKey ? "Hide API key" : "Show API key"} aria-pressed={showKey}
+                className="absolute right-1 top-1 bottom-1 w-11 flex items-center justify-center text-neutral-400 hover:text-white rounded-lg focus-visible:outline-2 focus-visible:outline-teal-400">
+                {showKey ? <EyeOff aria-hidden="true" className="h-5 w-5" /> : <Eye aria-hidden="true" className="h-5 w-5" />}
+              </button>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <button type="submit" disabled={busy || !apiKey.trim()} className="min-h-11 rounded-lg bg-teal-950 px-4 py-2 text-sm text-teal-300 hover:bg-teal-900 disabled:opacity-50">Save key</button>
+              <button type="button" onClick={handleForgetKey} disabled={busy} className="min-h-11 px-2 py-2 text-sm text-neutral-400 underline hover:text-white disabled:opacity-50">Forget key</button>
+              <span role="status" className="text-xs text-neutral-400">{storageMessage}</span>
+            </div>
+            <p id="key-storage-help" className="text-xs leading-relaxed text-neutral-500">Saved keys stay in this browser's local storage and are sent only to Yoinku for your requests. Avoid saving a key on a shared device.</p>
+          </form>
+          <p className="mt-4 text-xs text-neutral-500">Yoinku's free plan currently includes 5 downloads per day per account. <a href={YOINKU_DOCS_URL} target="_blank" rel="noopener noreferrer" className="text-teal-400 underline">API details & limits</a></p>
+        </div>
+
+        <form onSubmit={handleGetFormats} className="w-full text-left space-y-3">
+          <label htmlFor="media-url" className="block text-sm text-neutral-300">Video or post link</label>
+          <div className="relative flex items-center">
+            <Link2 aria-hidden="true" className="absolute left-4 text-neutral-500 h-5 w-5" />
+            <input id="media-url" type="url" required disabled={busy} placeholder="Paste a YouTube, Instagram, or TikTok link" value={videoUrl}
+              onChange={(event) => { setVideoUrl(event.target.value); reset(); }} className={`${inputClass} pl-12`} />
+          </div>
+          <button type="submit" disabled={busy || !apiKey.trim()} className={buttonClass}>
+            {status === "loading-info" && <Loader2 aria-hidden="true" className="h-5 w-5 animate-spin" />}
+            {status === "loading-info" ? "Finding formats…" : "Get download options"}
+          </button>
+          {!apiKey.trim() && <p className="text-xs text-neutral-500">Add your API key above to get started.</p>}
+        </form>
+
+        {info && (
+          <div className="w-full mt-6 text-left space-y-4 rounded-2xl border border-neutral-800 bg-neutral-900/50 p-4 sm:p-5">
+            <div>
+              <p className="text-xs uppercase text-teal-400">{info.platform}</p>
+              <h2 className="mt-1 font-semibold text-neutral-200 break-words">{info.title}</h2>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {(["video", "audio"] as const).map((value) => (
+                <button key={value} type="button" disabled={busy || !info.formats.some((item) => item.kind === value)} aria-pressed={kind === value} onClick={() => selectKind(value)}
+                  className={`min-h-11 rounded-xl border px-3 py-2 text-sm font-medium disabled:opacity-40 ${kind === value ? "border-teal-700 bg-teal-950 text-teal-300" : "border-neutral-800 text-neutral-400 hover:text-white"}`}>
+                  {value === "video" ? "Video" : "Audio"}
                 </button>
               ))}
             </div>
-
-            {source === "link" ? (
-              <div>
-                <label htmlFor="media-url" className="block text-sm text-neutral-300 mb-2">Video or audio URL</label>
-                <div className="relative flex items-center">
-                  <Link2 aria-hidden="true" className="absolute left-4 text-neutral-500 h-5 w-5" />
-                  <input id="media-url" type="url" required placeholder="https://example.com/video.mp4" value={videoUrl}
-                    onChange={(e) => { setVideoUrl(e.target.value); setStatus("idle"); }} aria-describedby="source-help"
-                    className="w-full min-w-0 bg-neutral-900 border border-neutral-800 rounded-2xl py-4 pl-12 pr-4 text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-teal-500 text-base" />
-                </div>
-                <p id="source-help" className="mt-2 text-xs leading-relaxed text-neutral-500">
-                  Use a direct file link that allows browser downloads. YouTube, Instagram, and TikTok page links aren't supported.
-                </p>
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-4">
-                <label htmlFor="media-file" className="flex items-center gap-2 text-sm text-neutral-300 mb-3"><Upload aria-hidden="true" className="h-4 w-4 text-teal-400" />Choose a video or audio file</label>
-                <input id="media-file" type="file" accept="video/*,audio/*,.mkv,.avi,.mov,.flac,.m4a,.ogg,.wav" required
-                  onChange={(e) => { setFile(e.target.files?.[0] || null); setStatus("idle"); }}
-                  className="block w-full min-w-0 text-sm text-neutral-400 file:mr-3 file:rounded-lg file:border-0 file:bg-teal-950 file:px-3 file:py-3 file:text-teal-300 focus-visible:outline-2 focus-visible:outline-teal-400" />
-                {file && <p className="mt-2 break-all text-xs text-neutral-500">{file.name} · {(file.size / 1024 / 1024).toFixed(1)} MB</p>}
-              </div>
-            )}
-
-            <div>
-              <label htmlFor="output-format" className="block text-sm text-neutral-300 mb-2">Download format</label>
-              <select id="output-format" value={format} onChange={(e) => { setFormat(e.target.value as OutputFormat); setStatus("idle"); }}
-                className="w-full min-h-12 rounded-2xl border border-neutral-800 bg-neutral-900 px-4 py-3 text-base text-white focus:outline-none focus:ring-2 focus:ring-teal-500">
-                <option value="original">Original · fastest</option>
-                <option value="mp4">MP4 video · keep original quality</option>
-                <option value="mp3">MP3 audio</option>
-              </select>
-              <p className="mt-2 text-xs leading-relaxed text-neutral-500">
-                {format === "original" ? "No conversion engine needed. Download the file in its original format."
-                  : format === "mp4" ? "Keeps existing video quality. Some source formats may not be compatible with MP4."
-                  : "Extracts the audio track as an MP3. The source must contain audio."}
-              </p>
-            </div>
-
-            <button type="submit"
-              className="w-full bg-teal-500 hover:bg-teal-600 text-neutral-950 font-bold py-4 px-6 rounded-2xl transition flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal-400">
-              {busy ? <Loader2 aria-hidden="true" className="h-5 w-5 animate-spin" /> : <Download aria-hidden="true" className="h-5 w-5" />}
-              {busy ? "Working…" : format === "original" ? "Download media" : "Convert & download"}
+            <label htmlFor="media-format" className="block text-sm text-neutral-300">Quality & format</label>
+            <select id="media-format" value={format} disabled={busy} onChange={(event) => { setFormat(event.target.value); setDownload(null); setErrorMessage(""); }} className={inputClass}>
+              {formats.map((item) => <option key={item.id} value={item.id}>{item.quality}{item.container ? ` · ${item.container.toUpperCase()}` : ""}{item.kind === "video" && !item.hasAudio ? " · no audio" : ""}</option>)}
+            </select>
+            <button type="button" onClick={handlePrepare} disabled={busy || !format || Boolean(download)} className={buttonClass}>
+              {status === "preparing" ? <Loader2 aria-hidden="true" className="h-5 w-5 animate-spin" /> : <Download aria-hidden="true" className="h-5 w-5" />}
+              {status === "preparing" ? "Preparing your file…" : download ? "Download ready below" : "Prepare download"}
             </button>
-          </fieldset>
-          <p className="text-center text-xs text-neutral-500">Up to 200 MB per file. The conversion engine loads only when needed.</p>
-        </form>
+            <p className="text-xs text-neutral-500">Preparing a file uses your Yoinku download allowance.</p>
+          </div>
+        )}
 
-        <div className="w-full mt-6" role="status" aria-live="polite">
-          {busy && (
-            <div className="space-y-3">
-              <p className="text-sm text-teal-300">{statusLabel}{progress !== null && status !== "loading" ? ` (${progress}%)` : "…"}</p>
-              <div role="progressbar" aria-label={statusLabel} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress ?? undefined}
-                className="w-full bg-neutral-900 rounded-full h-1.5 overflow-hidden">
-                <div className={`bg-teal-400 h-1.5 transition-all ${progress === null ? "w-full animate-pulse" : ""}`} style={progress !== null ? { width: `${progress}%` } : undefined} />
-              </div>
-              <button type="button" onClick={cancel} className="min-h-11 px-4 text-sm text-neutral-400 underline hover:text-white">Cancel</button>
+        {busy && <button type="button" onClick={() => request.current?.abort()} className="mt-3 min-h-11 px-4 text-sm text-neutral-400 underline hover:text-white">Cancel request</button>}
+        <div className="w-full mt-5" role="status" aria-live="polite" aria-atomic="true">
+          {download && (
+            <div className="rounded-xl border border-teal-800 bg-teal-950/30 p-4 text-sm text-teal-300">
+              <p className="flex items-center justify-center gap-2"><CheckCircle aria-hidden="true" className="h-5 w-5 shrink-0" />Your download is ready.</p>
+              <a href={download.url} download={download.filename} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer" className={`${buttonClass} mt-4`}>
+                <Download aria-hidden="true" className="h-5 w-5" />Download {kind === "audio" ? "audio" : "video"}
+              </a>
+              <p className="mt-3 break-words text-xs text-neutral-400">{download.filename}</p>
+              <p className="mt-1 text-xs text-neutral-500">The link is temporary. If your browser opens the file, use its download or save option.</p>
             </div>
           )}
-          {status === "success" && (
-            <div className="p-4 rounded-xl bg-emerald-950/30 border border-emerald-800/40 text-emerald-400 text-sm flex items-center gap-3 justify-center">
-              <CheckCircle aria-hidden="true" className="h-5 w-5 shrink-0" />Your file is ready. Download started!
-            </div>
-          )}
-          {status === "error" && (
-            <div className="p-4 rounded-xl bg-rose-950/30 border border-rose-800/40 text-rose-400 text-sm flex items-start gap-3 text-left">
-              <AlertTriangle aria-hidden="true" className="h-5 w-5 shrink-0" /><p className="break-words">{errorMessage}</p>
-            </div>
-          )}
+          {errorMessage && <div className="rounded-xl border border-rose-800/40 bg-rose-950/30 p-4 text-sm text-rose-400 flex items-start gap-3 text-left"><AlertTriangle aria-hidden="true" className="h-5 w-5 shrink-0" /><p className="break-words">{errorMessage}</p></div>}
         </div>
       </div>
     </section>
