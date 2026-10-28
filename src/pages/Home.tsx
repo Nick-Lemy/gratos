@@ -9,20 +9,21 @@ export default function Home() {
           href="/qr"
           description={
             <>
-              Free tools to generate{" "}
+              Free tool to generate, customize and personalize{" "}
               <span className="text-yellow-300"> QR Codes</span>{" "}
             </>
           }
         />
         <ToolCard
-          title="PDFGratos"
-          href="/pdf"
+          title="MediaGratos"
+          href="/download"
           description={
             <>
-              <span className="text-yellow-300">Edit Pdfs</span> online for free
+              Download videos and audios from <span className="text-yellow-300">YouTube, TikTok</span> and <span className="text-yellow-300">Instagram</span> for free.
             </>
           }
         />
+
       </div>
       <footer className="mt-auto text-center text-sm sm:text-base">
         © 2026 Nick Lemy K. All Rights Reserved.
