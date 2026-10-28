@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect, type FormEvent } from "react";
-import { Loader2, Download, AlertTriangle, CheckCircle, Link2, Eye, EyeOff, KeyRound, ExternalLink } from "lucide-react";
-import toast from "react-hot-toast";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 import {
   forgetApiKey, getMediaInfo, prepareDownload, readApiKey, saveApiKey,
   YOINKU_ACCOUNT_URL, YOINKU_DOCS_URL,
@@ -48,7 +47,6 @@ export default function MediaGratos() {
       saveApiKey(apiKey);
       setApiKey(apiKey.trim());
       setStorageMessage("Key saved on this browser.");
-      toast.success("API key saved.");
     } catch {
       setStorageMessage("This browser couldn't save your key. You can still use it for this visit.");
     }
@@ -115,52 +113,50 @@ export default function MediaGratos() {
   };
 
   const formats = info?.formats.filter((item) => item.kind === kind) || [];
-  const inputClass = "w-full min-w-0 bg-neutral-900 border border-neutral-800 rounded-xl py-3 px-4 text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-teal-500 text-base disabled:opacity-50";
-  const buttonClass = "w-full min-h-12 bg-teal-500 hover:bg-teal-600 text-neutral-950 font-semibold py-3 px-5 rounded-xl transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal-400";
+  const inputClass = "w-full min-w-0 bg-neutral-950 border border-neutral-700 rounded-sm py-3 px-4 text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-teal-500 text-base disabled:opacity-50";
+  const buttonClass = "w-full min-h-12 bg-teal-500 hover:bg-teal-600 text-neutral-950 font-semibold py-3 px-5 rounded-sm transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal-400";
 
   return (
-    <section className="min-h-dvh bg-neutral-950 text-neutral-200 px-5 py-12 sm:px-8 sm:py-20 lg:py-24">
+    <section className="min-h-dvh bg-neutral-950 font-inter text-neutral-200 px-5 py-12 sm:px-8 sm:py-20 lg:py-24">
       <div className="mx-auto flex w-full max-w-xl flex-col items-center text-center">
-        <h1 className="font-serif italic font-extrabold text-4xl mb-3 sm:text-6xl tracking-tight text-teal-400">MediaGratos</h1>
+        <h1 className="font-mileast-italic font-normal text-4xl mb-3 sm:text-6xl tracking-tight text-teal-400">MediaGratos</h1>
         <p className="text-neutral-400 text-sm sm:text-base max-w-md mb-8">
-          Paste a YouTube, Instagram, or TikTok link. Choose video or audio, then download with your own Yoinku account.
+          Download video or audio from YouTube, Instagram, and TikTok.
         </p>
 
-        <div className="w-full rounded-2xl border border-neutral-800 bg-neutral-900/50 p-4 sm:p-5 text-left mb-6">
-          <h2 className="flex items-center gap-2 text-base font-semibold text-teal-300"><KeyRound aria-hidden="true" className="h-4 w-4" />Your API key</h2>
-          <ol className="mt-3 list-decimal pl-5 text-sm text-neutral-400 space-y-2">
-            <li><a href={YOINKU_ACCOUNT_URL} target="_blank" rel="noopener noreferrer" className="text-teal-400 underline underline-offset-2">Create a free Yoinku account <ExternalLink aria-hidden="true" className="inline h-3 w-3" /></a> or sign in.</li>
-            <li>Open the API keys section of your account and create a key.</li>
-            <li>Paste it below. Choose Save key to remember it on this browser.</li>
-          </ol>
+        <div className="w-full border-b border-neutral-800 pb-6 text-left mb-6">
+          <h2 className="text-sm font-medium text-neutral-200">Your API key</h2>
+          <p className="mt-2 text-sm leading-relaxed text-neutral-400">
+            <a href={YOINKU_ACCOUNT_URL} target="_blank" rel="noopener noreferrer" className="text-teal-400 underline underline-offset-2">Get a free key from Yoinku.</a>{" "}
+            Sign in, open API keys, then create and paste your key below.
+          </p>
           <form onSubmit={handleSaveKey} className="mt-4 space-y-3">
-            <label htmlFor="yoinku-key" className="block text-sm text-neutral-300">Yoinku API key</label>
+            <label htmlFor="yoinku-key" className="sr-only">Yoinku API key</label>
             <div className="relative">
               <input id="yoinku-key" type={showKey ? "text" : "password"} value={apiKey} required disabled={busy}
                 onChange={(event) => { setApiKey(event.target.value); setStorageMessage(""); reset(); }}
                 placeholder="Paste your API key" autoComplete="off" autoCapitalize="none" spellCheck={false} aria-describedby="key-storage-help"
                 className={`${inputClass} pr-14`} />
               <button type="button" onClick={() => setShowKey(!showKey)} aria-label={showKey ? "Hide API key" : "Show API key"} aria-pressed={showKey}
-                className="absolute right-1 top-1 bottom-1 w-11 flex items-center justify-center text-neutral-400 hover:text-white rounded-lg focus-visible:outline-2 focus-visible:outline-teal-400">
+                className="absolute right-1 top-1 bottom-1 w-11 flex items-center justify-center text-neutral-400 hover:text-white rounded-sm focus-visible:outline-2 focus-visible:outline-teal-400">
                 {showKey ? <EyeOff aria-hidden="true" className="h-5 w-5" /> : <Eye aria-hidden="true" className="h-5 w-5" />}
               </button>
             </div>
             <div className="flex flex-wrap items-center gap-3">
-              <button type="submit" disabled={busy || !apiKey.trim()} className="min-h-11 rounded-lg bg-teal-950 px-4 py-2 text-sm text-teal-300 hover:bg-teal-900 disabled:opacity-50">Save key</button>
+              <button type="submit" disabled={busy || !apiKey.trim()} className="min-h-11 rounded-sm border border-neutral-700 px-4 py-2 text-sm text-neutral-200 hover:border-neutral-400 disabled:opacity-50">Save key</button>
               <button type="button" onClick={handleForgetKey} disabled={busy} className="min-h-11 px-2 py-2 text-sm text-neutral-400 underline hover:text-white disabled:opacity-50">Forget key</button>
               <span role="status" className="text-xs text-neutral-400">{storageMessage}</span>
             </div>
-            <p id="key-storage-help" className="text-xs leading-relaxed text-neutral-500">Saved keys stay in this browser's local storage and are sent only to Yoinku for your requests. Avoid saving a key on a shared device.</p>
+            <p id="key-storage-help" className="text-xs leading-relaxed text-neutral-500">Save your key on this browser, or use it without saving. Your key is sent only to Yoinku.</p>
           </form>
-          <p className="mt-4 text-xs text-neutral-500">Yoinku's free plan currently includes 5 downloads per day per account. <a href={YOINKU_DOCS_URL} target="_blank" rel="noopener noreferrer" className="text-teal-400 underline">API details & limits</a></p>
+          <p className="mt-4 text-xs text-neutral-500">Free plan: 5 downloads a day. <a href={YOINKU_DOCS_URL} target="_blank" rel="noopener noreferrer" className="text-teal-400 underline">Details</a></p>
         </div>
 
         <form onSubmit={handleGetFormats} className="w-full text-left space-y-3">
           <label htmlFor="media-url" className="block text-sm text-neutral-300">Video or post link</label>
-          <div className="relative flex items-center">
-            <Link2 aria-hidden="true" className="absolute left-4 text-neutral-500 h-5 w-5" />
+          <div>
             <input id="media-url" type="url" required disabled={busy} placeholder="Paste a YouTube, Instagram, or TikTok link" value={videoUrl}
-              onChange={(event) => { setVideoUrl(event.target.value); reset(); }} className={`${inputClass} pl-12`} />
+              onChange={(event) => { setVideoUrl(event.target.value); reset(); }} className={inputClass} />
           </div>
           <button type="submit" disabled={busy || !apiKey.trim()} className={buttonClass}>
             {status === "loading-info" && <Loader2 aria-hidden="true" className="h-5 w-5 animate-spin" />}
@@ -170,15 +166,15 @@ export default function MediaGratos() {
         </form>
 
         {info && (
-          <div className="w-full mt-6 text-left space-y-4 rounded-2xl border border-neutral-800 bg-neutral-900/50 p-4 sm:p-5">
+          <div className="w-full mt-6 border-t border-neutral-800 pt-6 text-left space-y-4">
             <div>
               <p className="text-xs uppercase text-teal-400">{info.platform}</p>
               <h2 className="mt-1 font-semibold text-neutral-200 break-words">{info.title}</h2>
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="flex gap-6 border-b border-neutral-800">
               {(["video", "audio"] as const).map((value) => (
                 <button key={value} type="button" disabled={busy || !info.formats.some((item) => item.kind === value)} aria-pressed={kind === value} onClick={() => selectKind(value)}
-                  className={`min-h-11 rounded-xl border px-3 py-2 text-sm font-medium disabled:opacity-40 ${kind === value ? "border-teal-700 bg-teal-950 text-teal-300" : "border-neutral-800 text-neutral-400 hover:text-white"}`}>
+                  className={`min-h-11 border-b-2 px-1 py-2 text-sm font-medium disabled:opacity-40 ${kind === value ? "border-teal-400 text-teal-400" : "border-transparent text-neutral-400 hover:text-white"}`}>
                   {value === "video" ? "Video" : "Audio"}
                 </button>
               ))}
@@ -188,7 +184,7 @@ export default function MediaGratos() {
               {formats.map((item) => <option key={item.id} value={item.id}>{item.quality}{item.container ? ` · ${item.container.toUpperCase()}` : ""}{item.kind === "video" && !item.hasAudio ? " · no audio" : ""}</option>)}
             </select>
             <button type="button" onClick={handlePrepare} disabled={busy || !format || Boolean(download)} className={buttonClass}>
-              {status === "preparing" ? <Loader2 aria-hidden="true" className="h-5 w-5 animate-spin" /> : <Download aria-hidden="true" className="h-5 w-5" />}
+              {status === "preparing" && <Loader2 aria-hidden="true" className="h-5 w-5 animate-spin" />}
               {status === "preparing" ? "Preparing your file…" : download ? "Download ready below" : "Prepare download"}
             </button>
             <p className="text-xs text-neutral-500">Preparing a file uses your Yoinku download allowance.</p>
@@ -198,16 +194,16 @@ export default function MediaGratos() {
         {busy && <button type="button" onClick={() => request.current?.abort()} className="mt-3 min-h-11 px-4 text-sm text-neutral-400 underline hover:text-white">Cancel request</button>}
         <div className="w-full mt-5" role="status" aria-live="polite" aria-atomic="true">
           {download && (
-            <div className="rounded-xl border border-teal-800 bg-teal-950/30 p-4 text-sm text-teal-300">
-              <p className="flex items-center justify-center gap-2"><CheckCircle aria-hidden="true" className="h-5 w-5 shrink-0" />Your download is ready.</p>
+            <div className="border-t border-neutral-800 pt-5 text-left text-sm text-neutral-200">
+              <p>Your download is ready.</p>
               <a href={download.url} download={download.filename} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer" className={`${buttonClass} mt-4`}>
-                <Download aria-hidden="true" className="h-5 w-5" />Download {kind === "audio" ? "audio" : "video"}
+                Download {kind === "audio" ? "audio" : "video"}
               </a>
               <p className="mt-3 break-words text-xs text-neutral-400">{download.filename}</p>
               <p className="mt-1 text-xs text-neutral-500">The link is temporary. If your browser opens the file, use its download or save option.</p>
             </div>
           )}
-          {errorMessage && <div className="rounded-xl border border-rose-800/40 bg-rose-950/30 p-4 text-sm text-rose-400 flex items-start gap-3 text-left"><AlertTriangle aria-hidden="true" className="h-5 w-5 shrink-0" /><p className="break-words">{errorMessage}</p></div>}
+          {errorMessage && <p className="text-left text-sm leading-relaxed text-rose-400 break-words">{errorMessage}</p>}
         </div>
       </div>
     </section>
