@@ -9,7 +9,7 @@ export default function QRGratos() {
   const [isLibraryLoaded, setIsLibraryLoaded] = useState(false);
   const hasUrl = url.length > 0;
 
-  // Design configuration states
+  // QR appearance
   const [dotsColor, setDotsColor] = useState<string>("#0f766e");
   const [bgColor, setBgColor] = useState<string>("#ffffff");
   const [dotsType, setDotsType] = useState<
@@ -40,15 +40,15 @@ export default function QRGratos() {
     return () => { disposed = true; qrCodeInstance.current = null; };
   }, []);
 
-  // 2. DOM Mount Logic: Mount the canvas once the target container and library are both ready
+  // Attach the QR preview when its container is visible.
   useEffect(() => {
     if (isLibraryLoaded && qrCodeInstance.current && qrRef.current) {
-      qrRef.current.innerHTML = ""; // Safe single flush before initialization
+      qrRef.current.innerHTML = "";
       qrCodeInstance.current.append(qrRef.current);
     }
   }, [isLibraryLoaded, hasUrl]);
 
-  // 3. Ultra-fast Live Updates: Use the library's native .update() method to change options smoothly without rewriting DOM nodes
+  // Update the existing QR code as its content or appearance changes.
   useEffect(() => {
     if (qrCodeInstance.current) {
       qrCodeInstance.current.update({
@@ -75,13 +75,13 @@ export default function QRGratos() {
   };
 
   return (
-    <section className="min-h-dvh bg-neutral-950 text-neutral-200 px-5 py-12 sm:px-8 sm:py-20 lg:py-32">
+    <section className="min-h-dvh bg-neutral-950 font-inter text-neutral-200 px-5 py-12 sm:px-8 sm:py-20 lg:py-24">
       <div className="mx-auto flex w-full max-w-xl flex-col items-center text-center">
-        <h1 className="text-teal-400 font-mileast-italic text-4xl mb-3 sm:text-6xl">
+        <h1 className="text-teal-400 font-mileast-italic font-normal text-4xl mb-3 sm:text-6xl">
           QRGratos
         </h1>
-        <p className="text-neutral-400 font-inter text-base mb-5 sm:text-xl">
-          Paste the link you want to transform to a QR Code here!
+        <p className="text-neutral-400 text-sm mb-6 sm:text-base">
+          Turn a link into a QR code. Choose its colors and style, then download.
         </p>
 
         <input
@@ -89,48 +89,48 @@ export default function QRGratos() {
           onChange={(e) => setUrl(e.target.value)}
           type="text"
           aria-label="Link to turn into a QR code"
-          className="border-2 w-full max-w-sm min-h-11 border-teal-500 rounded-xl px-3 py-2 text-white font-inter italic text-base bg-neutral-900 focus:outline-none focus:ring-1 focus:ring-teal-500"
-          placeholder="Enter your url"
+          className="w-full max-w-sm min-h-12 border border-neutral-700 rounded-sm px-4 py-3 text-white text-base bg-neutral-950 placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-teal-500"
+          placeholder="Paste your link"
         />
 
         {url.length > 0 && (
           <div className="flex w-full max-w-sm flex-col items-center">
-            {/* Real-time Render Target Container */}
-            <div className="mt-6 p-3 bg-white rounded-md shadow-lg min-w-56 min-h-56 flex items-center justify-center">
+            <div className="mt-6 p-3 bg-white min-w-56 min-h-56 flex items-center justify-center">
               <div ref={qrRef} />
             </div>
 
-            {/* Customization Control Dashboard */}
-            <div className="w-full mt-6 p-4 border border-teal-500/30 rounded-xl bg-neutral-900 text-left font-inter text-white text-sm space-y-4">
-              <p className="font-semibold text-teal-500 text-center border-b border-teal-500/20 pb-2">
-                Customize Design
+            <div className="w-full mt-6 border-t border-neutral-800 pt-5 text-left text-neutral-200 text-sm space-y-4">
+              <p className="font-medium text-neutral-200">
+                Appearance
               </p>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block mb-1 text-xs text-neutral-400">
-                    QR Code Color
+                  <label htmlFor="qr-color" className="block mb-2 text-sm text-neutral-400">
+                    QR color
                   </label>
                   <div className="flex items-center gap-2">
                     <input
+                      id="qr-color"
                       type="color"
                       value={dotsColor}
                       onChange={(e) => setDotsColor(e.target.value)}
-                      className="w-8 h-8 rounded border-0 cursor-pointer bg-transparent"
+                      className="size-11 shrink-0 border-0 cursor-pointer bg-transparent"
                     />
                     <span className="text-xs uppercase">{dotsColor}</span>
                   </div>
                 </div>
                 <div>
-                  <label className="block mb-1 text-xs text-neutral-400">
-                    Background Color
+                  <label htmlFor="qr-background" className="block mb-2 text-sm text-neutral-400">
+                    Background
                   </label>
                   <div className="flex items-center gap-2">
                     <input
+                      id="qr-background"
                       type="color"
                       value={bgColor}
                       onChange={(e) => setBgColor(e.target.value)}
-                      className="w-8 h-8 rounded border-0 cursor-pointer bg-transparent"
+                      className="size-11 shrink-0 border-0 cursor-pointer bg-transparent"
                     />
                     <span className="text-xs uppercase">{bgColor}</span>
                   </div>
@@ -139,13 +139,14 @@ export default function QRGratos() {
 
               <div className="grid grid-cols-2 gap-3 pt-2">
                 <div>
-                  <label className="block mb-1 text-xs text-neutral-400">
-                    Pattern Style
+                  <label htmlFor="qr-pattern" className="block mb-2 text-sm text-neutral-400">
+                    Pattern
                   </label>
                   <select
+                    id="qr-pattern"
                     value={dotsType}
                     onChange={(e) => setDotsType(e.target.value as typeof dotsType)}
-                    className="w-full bg-neutral-900 text-white border border-teal-500/40 rounded px-2 py-1 text-xs focus:outline-none"
+                    className="w-full min-w-0 min-h-11 bg-neutral-950 text-white border border-neutral-700 rounded-sm px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
                   >
                     <option value="square">Square Blocks</option>
                     <option value="rounded">Smooth Fluid</option>
@@ -154,13 +155,14 @@ export default function QRGratos() {
                   </select>
                 </div>
                 <div>
-                  <label className="block mb-1 text-xs text-neutral-400">
-                    Corner Targets
+                  <label htmlFor="qr-corners" className="block mb-2 text-sm text-neutral-400">
+                    Corners
                   </label>
                   <select
+                    id="qr-corners"
                     value={cornersType}
                     onChange={(e) => setCornersType(e.target.value as typeof cornersType)}
-                    className="w-full bg-neutral-900 text-white border border-teal-500/40 rounded px-2 py-1 text-xs focus:outline-none"
+                    className="w-full min-w-0 min-h-11 bg-neutral-950 text-white border border-neutral-700 rounded-sm px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
                   >
                     <option value="square">Sharp Edges</option>
                     <option value="rounded">Rounded Ring</option>
@@ -173,9 +175,9 @@ export default function QRGratos() {
             <button
               onClick={handleDownload}
               disabled={!isLibraryLoaded}
-              className="mt-5 min-h-11 w-full px-6 py-2 bg-teal-500 text-sm font-inter font-semibold text-neutral-950 rounded-xl hover:bg-teal-600 transition duration-200 disabled:opacity-50"
+              className="mt-6 min-h-12 w-full px-5 py-3 bg-teal-500 text-base font-semibold text-neutral-950 rounded-sm hover:bg-teal-600 transition disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal-400"
             >
-              Download QR Code
+              Download QR code
             </button>
           </div>
         )}
