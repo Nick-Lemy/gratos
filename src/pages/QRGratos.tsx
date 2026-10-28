@@ -29,7 +29,7 @@ export default function QRGratos() {
     }
   };
   return (
-    <section className="bg-[#0064E2] min-h-dvh px-5 py-12 sm:px-8 sm:py-20 lg:py-32">
+    <section className="min-h-lvh px-5 py-12 sm:px-8 sm:py-20 lg:py-32">
       <div className="mx-auto flex w-full max-w-xl flex-col items-center text-center">
         <h1 className="text-white font-mileast-italic text-4xl mb-3 sm:text-6xl">
           QRGratos
@@ -50,7 +50,7 @@ export default function QRGratos() {
         {url.length > 0 && (
           <div className="flex w-full max-w-sm flex-col items-center">
             <img
-              className="mt-5 h-auto w-[150px] max-w-full"
+              className="mt-5 h-auto w-37.5 max-w-full"
               src={qrCodeUrl}
               alt="QR Code Image"
             />
