@@ -21,3 +21,8 @@
   --font-mileast: "Mileast", serif;
   --font-mileast-italic: "Mileast Italic", serif;
 }
+
+body {
+  min-width: 280px;
+  font-family: var(--font-inter);
+}

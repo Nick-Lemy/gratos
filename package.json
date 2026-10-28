@@ -7,11 +7,12 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
+    "test": "pnpm build && node --test tests/*.test.ts",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@ffmpeg/core": "0.12.10",
     "@ffmpeg/ffmpeg": "^0.12.15",
-    "@ffmpeg/util": "^0.12.2",
     "@tailwindcss/vite": "^4.3.3",
     "lucide-react": "^1.62.0",
     "qr-code-styling": "^1.9.2",
