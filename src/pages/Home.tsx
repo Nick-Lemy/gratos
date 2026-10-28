@@ -16,14 +16,15 @@ export default function Home() {
         />
         <ToolCard
           title="MediaGratos"
-          href="/download"
+          href="/media"
           description={
             <>
-              Download videos and audios from <span className="text-yellow-300">YouTube, TikTok</span> and <span className="text-yellow-300">Instagram</span> for free.
+              Download videos and audios from{" "}
+              <span className="text-yellow-300">YouTube, TikTok</span> and{" "}
+              <span className="text-yellow-300">Instagram</span> for free.
             </>
           }
         />
-
       </div>
       <footer className="mt-auto text-center text-sm sm:text-base">
         © 2026 Nick Lemy K. All Rights Reserved.
